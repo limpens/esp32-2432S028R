@@ -6,8 +6,14 @@
 #define LCD_BUF_LINES      30
 #define LCD_DOUBLE_BUFFER  1
 #define LCD_DRAWBUF_SIZE   (LCD_H_RES * LCD_BUF_LINES)
+
+#ifdef CYD_ILI9341
 #define LCD_MIRROR_X       (true)
 #define LCD_MIRROR_Y       (false)
+#else
+#define LCD_MIRROR_X       (false)
+#define LCD_MIRROR_Y       (false)
+#endif
 
 #define LCD_PIXEL_CLOCK_HZ (40 * 1000 * 1000)
 #define LCD_CMD_BITS       (8)
@@ -21,10 +27,8 @@
 #define LCD_RESET          (gpio_num_t) GPIO_NUM_4
 #define LCD_BUSY           (gpio_num_t) GPIO_NUM_NC
 
-
 #define LCD_BACKLIGHT      (gpio_num_t) GPIO_NUM_21
 #define LCD_BACKLIGHT_LEDC_CH  (1)
-
 
 #define TOUCH_X_RES_MIN 0
 #define TOUCH_X_RES_MAX 240
@@ -39,4 +43,7 @@
 #define TOUCH_CS       (gpio_num_t) GPIO_NUM_33
 #define TOUCH_DC       (gpio_num_t) GPIO_NUM_NC
 #define TOUCH_RST      (gpio_num_t) GPIO_NUM_NC
-#define TOUCH_IRQ      (gpio_num_t) GPIO_NUM_36
+#define TOUCH_IRQ      (gpio_num_t) GPIO_NUM_NC /* GPIO_NUM_36, XPT driver is working better (for me) without IRQ */
+
+#define TOUCH_MIRROR_X (true)
+#define TOUCH_MIRROR_Y (false)

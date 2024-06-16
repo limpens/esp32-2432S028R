@@ -64,8 +64,8 @@ esp_err_t touch_init(esp_lcd_touch_handle_t *tp)
                                    .flags =
                                        {
                                            .swap_xy = false,
-                                           .mirror_x = LCD_MIRROR_X,
-                                           .mirror_y = LCD_MIRROR_Y,
+                                           .mirror_x = TOUCH_MIRROR_X,
+                                           .mirror_y = TOUCH_MIRROR_Y
                                        },
                                    .process_coordinates = process_coordinates,
                                    .interrupt_callback = NULL};
