@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 
 #include <freertos/FreeRTOS.h>
@@ -14,111 +15,136 @@
 #include <lvgl.h>
 #include <esp_lvgl_port.h>
 
-#include "lcd.h"
-#include "touch.h"
+#include "drivers/lcd.h"
+#include "drivers/touch.h"
+#include "frontend/keypad/keypad.h"
+#include "frontend/calibration/calibration.h"
+#include "frontend/home/home.h"
 
-static const char *TAG="demo";
+static const char *TAG = "demo";
 
-lv_obj_t *lbl_counter;
+// Forward declarations
+static void touch_test_task(void *arg);
 
-void ui_event_Screen(lv_event_t *e)
-{
-static uint8_t pos=1;
+// Create keypad UI with NVS support
+void create_keypad_ui(void) {
+    ESP_LOGI(TAG, "create_keypad_ui called - initializing with NVS support");
+    
+    // Initialize NVS and load passkey
+    esp_err_t err = keypad_init_nvs();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize keypad NVS");
+    }
+    
+    // Create all screens
+    create_keypad_screen();
+    create_calibration_screen();
+    create_home_screen();
+    
+    // Start with calibration screen for testing touch coordinates
+    switch_to_calibration();
+}
 
-    lv_event_code_t event_code = lv_event_get_code(e);
-    lv_obj_t *btn = (lv_obj_t *)lv_event_get_user_data(e);
-
-    if (event_code == LV_EVENT_CLICKED)
-    {
-        lv_obj_align(btn, pos++, 0, 0);
-        if (pos > 9) pos=1;
+// Debug function to test touch periodically
+static void touch_test_task(void *arg) {
+    ESP_LOGI(TAG, "Touch test task started");
+    
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(5000)); // Check every 5 seconds
+        
+        // Get input device (touch)
+        lv_indev_t *indev = lv_indev_get_next(NULL);
+        if (indev) {
+            lv_indev_type_t type = lv_indev_get_type(indev);
+            ESP_LOGI(TAG, "TOUCH TEST: Found input device type: %d", type);
+            
+            // Check if there's any touch activity
+            lv_indev_state_t state = lv_indev_get_state(indev);
+            lv_point_t point;
+            lv_indev_get_point(indev, &point);
+            
+            if (state == LV_INDEV_STATE_PRESSED) {
+                ESP_LOGI(TAG, "TOUCH TEST: Active touch at (%ld, %ld)", (long)point.x, (long)point.y);
+            } else {
+                ESP_LOGI(TAG, "TOUCH TEST: No touch detected (last coordinates: %ld, %ld)", (long)point.x, (long)point.y);
+            }
+            
+            // Also check raw touch data if available
+            ESP_LOGI(TAG, "TOUCH TEST: Input device state: %d, coordinates: (%ld, %ld)", state, (long)point.x, (long)point.y);
+        } else {
+            ESP_LOGW(TAG, "TOUCH TEST: No input devices found!");
+        }
     }
 }
 
-
 static esp_err_t app_lvgl_main(void)
 {
-    lv_obj_t *scr = lv_scr_act();
-
+    ESP_LOGI(TAG, "Starting LVGL main with keypad UI");
+    
     lvgl_port_lock(0);
 
-    lv_obj_t *label = lv_label_create(scr);
-    lv_label_set_text(label, "Hello LVGL 9 and esp_lvgl_port!");
-    lv_obj_set_style_text_color(label, lv_color_white(), LV_STATE_DEFAULT);
-    lv_obj_align(label, LV_ALIGN_BOTTOM_MID, 0, -48);
+    // Create the keypad interface
+    create_keypad_ui();
 
-    lv_obj_t *labelR = lv_label_create(scr);
-    lv_label_set_text(labelR, "Red");
-    lv_obj_set_style_text_color(labelR, lv_color_make(0xff, 0, 0), LV_STATE_DEFAULT);
-    lv_obj_align(labelR, LV_ALIGN_TOP_MID, 0, 0);
-
-    lv_obj_t *labelG = lv_label_create(scr);
-    lv_label_set_text(labelG, "Green");
-    lv_obj_set_style_text_color(labelG, lv_color_make(0, 0xff, 0), LV_STATE_DEFAULT);
-    lv_obj_align(labelG, LV_ALIGN_TOP_MID, 0, 32);
-
-    lv_obj_t *labelB = lv_label_create(scr);
-    lv_label_set_text(labelB, "Blue");
-    lv_obj_set_style_text_color(labelB, lv_color_make(0, 0, 0xff), LV_STATE_DEFAULT);
-    lv_obj_align(labelB, LV_ALIGN_TOP_MID, 0, 64);
-
-    lv_obj_t *btn_counter = lv_button_create(scr);
-    lv_obj_align(btn_counter, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_size(btn_counter, 120, 50);
-    lv_obj_add_event_cb(btn_counter, ui_event_Screen, LV_EVENT_ALL, btn_counter);
-
-    lbl_counter = lv_label_create(btn_counter);
-    lv_label_set_text(lbl_counter, "testing");
-    lv_obj_set_style_text_color(lbl_counter, lv_color_make(248, 11, 181), LV_STATE_DEFAULT);
-    lv_obj_align(lbl_counter, LV_ALIGN_CENTER, 0, 0);
-
+    ESP_LOGI(TAG, "LVGL keypad UI created successfully");
     lvgl_port_unlock();
+
+    // Start touch test task
+    xTaskCreate(touch_test_task, "touch_test", 4096, NULL, 5, NULL);
+    ESP_LOGI(TAG, "Touch test task created");
 
     return ESP_OK;
 }
 
-
 void app_main(void)
 {
-esp_lcd_panel_io_handle_t lcd_io;
-esp_lcd_panel_handle_t lcd_panel;
-esp_lcd_touch_handle_t tp;
-lvgl_port_touch_cfg_t touch_cfg;
-lv_display_t *lvgl_display = NULL;
-char buf[16];
-uint16_t n = 0;
+    esp_lcd_panel_io_handle_t lcd_io;
+    esp_lcd_panel_handle_t lcd_panel;
+    esp_lcd_touch_handle_t tp;
+    lv_display_t *lvgl_display = NULL;
+
+    ESP_LOGI(TAG, "=== ESP32 CYD Touch Debug Application Starting ===");
 
     ESP_ERROR_CHECK(lcd_display_brightness_init());
+    ESP_LOGI(TAG, "LCD brightness initialized");
 
     ESP_ERROR_CHECK(app_lcd_init(&lcd_io, &lcd_panel));
+    ESP_LOGI(TAG, "LCD initialized");
+    
     lvgl_display = app_lvgl_init(lcd_io, lcd_panel);
     if (lvgl_display == NULL)
     {
-        ESP_LOGI(TAG, "fatal error in app_lvgl_init");
+        ESP_LOGE(TAG, "Fatal error in app_lvgl_init");
         esp_restart();
     }
+    ESP_LOGI(TAG, "LVGL initialized");
     
     ESP_ERROR_CHECK(touch_init(&tp));
-    touch_cfg.disp = lvgl_display;
-    touch_cfg.handle = tp;
+    ESP_LOGI(TAG, "Touch controller initialized");
+    
+    // Use the simple touch integration with esp_lvgl_port
+    const lvgl_port_touch_cfg_t touch_cfg = {
+        .disp = lvgl_display,
+        .handle = tp,
+    };
     lvgl_port_add_touch(&touch_cfg);
+    ESP_LOGI(TAG, "Touch added to LVGL port");
 
     ESP_ERROR_CHECK(lcd_display_brightness_set(75));
+    ESP_LOGI(TAG, "LCD brightness set to 75%%");
+    
     ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, LV_DISPLAY_ROTATION_90));
+    ESP_LOGI(TAG, "LCD rotated to landscape mode");
+    
     ESP_ERROR_CHECK(app_lvgl_main());
+    ESP_LOGI(TAG, "LVGL main initialized");
 
-    while(42)
+    ESP_LOGI(TAG, "=== Application setup complete - Touch the screen ===");
+    ESP_LOGI(TAG, "=== Watch serial output for touch debug information ===");
+
+    // Main loop - just keep alive
+    while(1)
     {
-        sprintf(buf, "%04d", n++);
-
-        if (lvgl_port_lock(0))
-        {
-            lv_label_set_text(lbl_counter, buf);
-
-            lvgl_port_unlock();
-        }
-
-        vTaskDelay(125 / portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
-    vTaskDelay(portMAX_DELAY);
 }
