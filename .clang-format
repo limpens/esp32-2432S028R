@@ -1,0 +1,17 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+IndentCaseLabels: true
+SpaceBeforeParens: Never
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBraces: Linux
+IncludeBlocks: Regroup
+SortIncludes: true

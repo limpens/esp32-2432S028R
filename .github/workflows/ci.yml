@@ -1,0 +1,162 @@
+name: ESP-IDF CI
+
+on:
+  push:
+    branches: [ main, develop, fv-new-base-template ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Host-based tests (fast, runs on every commit)
+  host-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake pkg-config
+        
+    - name: Build and run host tests
+      run: |
+        cd test/host_test
+        mkdir -p build
+        cd build
+        cmake ..
+        make
+        ./host_tests
+
+  # ESP-IDF build tests (more comprehensive)
+  esp-idf-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        idf-target: [esp32]
+        
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+        
+    - name: Setup ESP-IDF
+      uses: espressif/esp-idf-action@v1
+      with:
+        esp-idf-version: v5.3.2
+        target: ${{ matrix.idf-target }}
+        
+    - name: Build main project
+      run: |
+        cd $GITHUB_WORKSPACE
+        idf.py set-target ${{ matrix.idf-target }}
+        idf.py build
+        
+    - name: Build and run Unity tests
+      run: |
+        cd $GITHUB_WORKSPACE/test/unity
+        idf.py set-target ${{ matrix.idf-target }}
+        idf.py build
+        
+    - name: Archive build artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: build-artifacts-${{ matrix.idf-target }}
+        path: |
+          build/*.bin
+          build/*.elf
+          build/*.map
+          test/unity/build/*.bin
+          test/unity/build/*.elf
+        retention-days: 30
+
+  # Code quality checks
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup ESP-IDF
+      uses: espressif/esp-idf-action@v1
+      with:
+        esp-idf-version: v5.3.2
+        target: esp32
+        
+    - name: Check code formatting (if clang-format config exists)
+      run: |
+        if [ -f .clang-format ]; then
+          find main -name "*.c" -o -name "*.h" | xargs clang-format --dry-run --Werror
+        else
+          echo "No .clang-format file found, skipping format check"
+        fi
+        
+    - name: Run static analysis with ESP-IDF tools
+      run: |
+        cd $GITHUB_WORKSPACE
+        idf.py set-target esp32
+        # Check for common issues
+        python $IDF_PATH/tools/check_kconfigs.py
+        
+    - name: Check component dependencies
+      run: |
+        cd $GITHUB_WORKSPACE
+        idf.py show_efuse_table || true
+        idf.py size || true
+
+  # Hardware simulation tests (if Wokwi or QEMU is available)
+  simulation-tests:
+    runs-on: ubuntu-latest
+    if: false  # Disabled by default, enable when simulation is set up
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup ESP-IDF
+      uses: espressif/esp-idf-action@v1
+      with:
+        esp-idf-version: v5.3.2
+        target: esp32
+        
+    - name: Build for simulation
+      run: |
+        cd $GITHUB_WORKSPACE
+        idf.py set-target esp32
+        idf.py build
+        
+    # Add simulation steps here when available
+    # - name: Run Wokwi simulation
+    #   run: |
+    #     # Wokwi CLI or API calls
+    
+    # - name: Run QEMU simulation  
+    #   run: |
+    #     # QEMU ESP32 simulation
+
+  # Documentation build (if docs exist)
+  docs-build:
+    runs-on: ubuntu-latest
+    if: false  # Enable when documentation is added
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+        
+    - name: Install documentation dependencies
+      run: |
+        pip install sphinx breathe
+        
+    - name: Build documentation
+      run: |
+        cd docs
+        make html

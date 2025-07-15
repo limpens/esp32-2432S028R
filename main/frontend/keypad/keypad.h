@@ -43,4 +43,8 @@ void setup_keypad_event_handler(lv_event_t *e);
 // Keypad state management
 void keypad_reset_state(void);
 
+// Passkey validation and update functions
+bool validate_passkey(const char* input);
+void update_passkey(const char* new_passkey);
+
 #endif // KEYPAD_H

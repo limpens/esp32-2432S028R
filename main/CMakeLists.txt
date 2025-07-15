@@ -4,6 +4,7 @@ idf_component_register(SRCS demo.c
                            frontend/keypad/keypad.c
                            frontend/calibration/calibration.c
                            frontend/home/home.c
+                           frontend/passkey/passkey_change.c
                     INCLUDE_DIRS "."
                     REQUIRES esp_lcd driver nvs_flash esp_timer
                     )

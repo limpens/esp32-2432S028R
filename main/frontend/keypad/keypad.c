@@ -481,3 +481,37 @@ void keypad_reset_state(void) {
         lv_label_set_text(status_label, is_passkey_set ? "Enter 4-digit code" : "Touch to setup passkey");
     }
 }
+
+// Passkey validation function
+bool validate_passkey(const char* input) {
+    if (!input || strlen(input) != 4) {
+        return false;
+    }
+    
+    if (is_passkey_set) {
+        return strcmp(input, correct_passkey) == 0;
+    }
+    
+    return false;
+}
+
+// Update passkey function
+void update_passkey(const char* new_passkey) {
+    if (!new_passkey || strlen(new_passkey) != 4) {
+        ESP_LOGE(TAG, "Invalid passkey format");
+        return;
+    }
+    
+    // Update the current passkey
+    strncpy(correct_passkey, new_passkey, sizeof(correct_passkey) - 1);
+    correct_passkey[4] = '\0';
+    
+    // Save to NVS
+    esp_err_t err = nvs_save_passkey(new_passkey);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "Passkey updated successfully");
+        is_passkey_set = true;
+    } else {
+        ESP_LOGE(TAG, "Failed to save new passkey to NVS: %s", esp_err_to_name(err));
+    }
+}

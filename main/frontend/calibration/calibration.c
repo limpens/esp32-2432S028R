@@ -15,50 +15,44 @@ bool cal_point2_touched = false;
 bool cal_point3_touched = false;
 bool cal_point4_touched = false;
 
+// Helper function to update coordinate display
+void update_coordinate_display(lv_point_t *point) {
+    if (coord_label != NULL && point != NULL) {
+        char coord_text[50];
+        snprintf(coord_text, sizeof(coord_text), "Touch: (%ld, %ld)", (long)point->x, (long)point->y);
+        lv_label_set_text(coord_label, coord_text);
+    }
+}
+
 // Global event handler for debugging all LVGL events
 void global_event_handler(lv_event_t *e) {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t *obj = lv_event_get_target(e);
     
+    // Get the touch coordinates for all events
+    lv_indev_t *indev = lv_indev_get_act();
+    lv_point_t point = {0, 0};
+    if (indev) {
+        lv_indev_get_point(indev, &point);
+    }
+    
     // Log only important touch-related events with coordinates
     switch(code) {
         case LV_EVENT_PRESSED:
-            {
-                // Get the touch coordinates when pressed
-                lv_indev_t *indev = lv_indev_get_act();
-                if (indev) {
-                    lv_point_t point;
-                    lv_indev_get_point(indev, &point);
-                    ESP_LOGI(TAG, "TOUCH: PRESSED at (%ld, %ld)", (long)point.x, (long)point.y);
-                    
-                    // Update coordinate label if on calibration screen
-                    if (coord_label != NULL) {
-                        char coord_text[50];
-                        snprintf(coord_text, sizeof(coord_text), "Touch: (%ld, %ld)", (long)point.x, (long)point.y);
-                        lv_label_set_text(coord_label, coord_text);
-                    }
-                }
-            }
+            ESP_LOGI(TAG, "TOUCH: PRESSED at (%ld, %ld)", (long)point.x, (long)point.y);
+            update_coordinate_display(&point);
+            break;
+        case LV_EVENT_PRESSING:
+            // Continuous updates while pressing (less frequent logging)
+            update_coordinate_display(&point);
             break;
         case LV_EVENT_RELEASED:
-            {
-                lv_indev_t *indev = lv_indev_get_act();
-                if (indev) {
-                    lv_point_t point;
-                    lv_indev_get_point(indev, &point);
-                    ESP_LOGI(TAG, "TOUCH: RELEASED at (%ld, %ld)", (long)point.x, (long)point.y);
-                }
-            }
+            ESP_LOGI(TAG, "TOUCH: RELEASED at (%ld, %ld)", (long)point.x, (long)point.y);
+            update_coordinate_display(&point);
             break;
         case LV_EVENT_CLICKED:
-            {
-                lv_indev_t *indev = lv_indev_get_act();
-                if (indev) {
-                    lv_point_t point;
-                    lv_indev_get_point(indev, &point);
-                    ESP_LOGI(TAG, "TOUCH: CLICKED at (%ld, %ld)", (long)point.x, (long)point.y);
-                }
-            }
+            ESP_LOGI(TAG, "TOUCH: CLICKED at (%ld, %ld)", (long)point.x, (long)point.y);
+            update_coordinate_display(&point);
             break;
         default:
             // Don't log other events to reduce noise
@@ -73,8 +67,10 @@ void create_calibration_screen(void) {
     // Create a new screen for calibration
     calibration_screen = lv_obj_create(NULL);
     
-    // Add global event handler for touch coordinate debugging 
-    lv_obj_add_event_cb(calibration_screen, global_event_handler, LV_EVENT_PRESSED | LV_EVENT_RELEASED, NULL);
+    // Add global event handler for touch coordinate debugging - register for more events
+    lv_obj_add_event_cb(calibration_screen, global_event_handler, 
+                       LV_EVENT_PRESSED | LV_EVENT_RELEASED | LV_EVENT_CLICKED | LV_EVENT_PRESSING, 
+                       NULL);
     
     // Title
     lv_obj_t *title = lv_label_create(calibration_screen);
@@ -175,6 +171,9 @@ void calibration_point_event_handler(lv_event_t *e) {
             lv_point_t point;
             lv_indev_get_point(indev, &point);
             
+            // Update coordinate display
+            update_coordinate_display(&point);
+            
             // Determine which point was touched and mark it as green
             if (obj == cal_point1) {
                 ESP_LOGI(TAG, "CALIBRATION: Point 1 (top-left) touched at (%ld, %ld)", (long)point.x, (long)point.y);
@@ -197,6 +196,11 @@ void calibration_point_event_handler(lv_event_t *e) {
             // Check if all points have been touched
             if (cal_point1_touched && cal_point2_touched && cal_point3_touched && cal_point4_touched) {
                 ESP_LOGI(TAG, "CALIBRATION: All points touched! Calibration complete.");
+                // Update coordinate display to show completion
+                if (coord_label != NULL) {
+                    lv_label_set_text(coord_label, "Calibration Complete!");
+                    lv_obj_set_style_text_color(coord_label, lv_color_hex(0x00FF00), 0);
+                }
             }
         }
     }

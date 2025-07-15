@@ -21,5 +21,7 @@ void create_calibration_screen(void);
 void switch_to_calibration(void);
 void calibration_switch_event_handler(lv_event_t *e);
 void calibration_point_event_handler(lv_event_t *e);
+void global_event_handler(lv_event_t *e);
+void update_coordinate_display(lv_point_t *point);
 
 #endif // CALIBRATION_H
