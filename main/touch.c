@@ -4,7 +4,6 @@
 
 #include <esp_log.h>
 #include <esp_err.h>
-#include <esp_timer.h>
 #include <esp_lcd_touch.h>
 #include <esp_lcd_touch_xpt2046.h>
 
