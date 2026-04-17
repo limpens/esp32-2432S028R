@@ -13,7 +13,6 @@
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_panel_vendor.h>
 #include <esp_lcd_panel_ops.h>
-#include <esp_timer.h>
 #include <driver/gpio.h>
 #include <driver/ledc.h>
 #include <driver/spi_master.h>
@@ -126,9 +125,9 @@ esp_err_t app_lcd_init(esp_lcd_panel_io_handle_t *lcd_io, esp_lcd_panel_handle_t
     const esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = LCD_RESET,
         #ifdef CYD_ILI9341
-        .color_space = ESP_LCD_COLOR_SPACE_BGR,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
         #else
-        .color_space = ESP_LCD_COLOR_SPACE_RGB,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
         #endif
         .bits_per_pixel = LCD_BITS_PIXEL,
     };
