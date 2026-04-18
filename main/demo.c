@@ -101,6 +101,8 @@ uint16_t n = 0;
     ESP_ERROR_CHECK(touch_init(&tp));
     touch_cfg.disp = lvgl_display;
     touch_cfg.handle = tp;
+    touch_cfg.scale.x = 0;
+    touch_cfg.scale.y = 0;
     lvgl_port_add_touch(&touch_cfg);
 
     ESP_ERROR_CHECK(lcd_display_brightness_set(75));

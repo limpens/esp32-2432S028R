@@ -153,7 +153,7 @@ lv_display_t *app_lvgl_init(esp_lcd_panel_io_handle_t lcd_io, esp_lcd_panel_hand
 {
     const lvgl_port_cfg_t lvgl_cfg = {
         .task_priority = 4,
-        .task_stack = 4096,
+        .task_stack = 8192,
         .task_affinity = -1,
         .task_max_sleep_ms = 500,
         .timer_period_ms = 5
